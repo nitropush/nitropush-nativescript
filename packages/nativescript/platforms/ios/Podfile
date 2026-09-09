@@ -1,0 +1,5 @@
+platform :ios, '15.0'
+# NativeScript merges this file into the host Podfile; resolve from the host's node tree.
+nitropush_package = IO.popen(['node', '-p', "require.resolve('@nitropush/nativescript/package.json')"], &:read).strip
+raise 'Could not resolve @nitropush/nativescript' if nitropush_package.empty?
+pod 'NitroPushNativeScript', :path => File.join(File.dirname(nitropush_package), 'platforms', 'ios')

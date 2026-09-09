@@ -1,0 +1,27 @@
+{
+  "name": "@nitropush/nativescript-example",
+  "version": "1.0.0",
+  "private": true,
+  "main": "app/app.tsx",
+  "scripts": {
+    "android": "ns run android",
+    "ios": "ns run ios",
+    "build:android": "ns build android --release",
+    "build:ios": "ns build ios --release",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nativescript/core": "9.1.1",
+    "@nitropush/nativescript": "workspace:*",
+    "react": "18.3.1",
+    "react-nativescript": "5.0.0"
+  },
+  "devDependencies": {
+    "@nativescript/android": "9.1.1",
+    "@nativescript/ios": "9.1.0",
+    "@nativescript/webpack": "5.0.38",
+    "@types/react": "npm:types-react-without-jsx-intrinsics@18.0.17",
+    "nativescript": "9.1.1",
+    "typescript": "^5.6.3"
+  }
+}

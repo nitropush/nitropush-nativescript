@@ -1,0 +1,47 @@
+{
+  "name": "@nitropush/nativescript",
+  "version": "0.1.0-alpha.0",
+  "description": "Signed NativeScript application-tree OTA updates using NitroPush",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "nativescript": {
+    "platforms": {
+      "ios": "9.1.0",
+      "android": "9.1.0"
+    }
+  },
+  "files": [
+    "dist",
+    "platforms",
+    "hooks",
+    "scripts",
+    "README.md",
+    "native-core.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/verify-core.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.cjs",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "@nativescript/core": ">=9.1.0 <10"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nitropush/nitropush-nativescript.git",
+    "directory": "packages/nativescript"
+  },
+  "homepage": "https://docs.nitropush.org/docs/sdk/nativescript",
+  "bugs": {
+    "url": "https://github.com/nitropush/nitropush-nativescript/issues"
+  }
+}

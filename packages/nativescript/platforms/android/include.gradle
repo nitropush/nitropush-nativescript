@@ -1,0 +1,4 @@
+// NativeScript compiles platforms/android/java into the plugin AAR automatically.
+dependencies {
+    implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+}

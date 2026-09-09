@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "noEmit": true,
+    "types": [],
+    "jsx": "react",
+    "esModuleInterop": true
+  },
+  "include": [
+    "app/**/*.ts",
+    "nativescript.config.ts",
+    "app/**/*.tsx"
+  ]
+}
