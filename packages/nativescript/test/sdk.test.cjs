@@ -41,3 +41,9 @@ test('missing native bootstrap produces an actionable error', () => {
   delete global.NitroPushNativeScript; delete require.cache[modulePath];
   assert.throws(() => require(modulePath).configure(), /bootstrap is missing/);
 });
+test('pending rollback delegates to native without confirming or clearing the running release', async () => {
+  const operations = [];
+  const api = sdk((operation, callback) => { operations.push(operation); callback('null', null); });
+  await api.configure().clearPendingUpdate();
+  assert.deepEqual(operations, ['clearPending']);
+});
