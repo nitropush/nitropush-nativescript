@@ -2,7 +2,7 @@
 
 Experimental signed application-tree OTA updates using NitroPush's existing release API, schema-4 signing contract, content-addressed storage, rollout controls, native telemetry and rollback engine. No React Native or Nitro Modules dependency is installed in the application.
 
-This is an **alpha integration**. Full application boot, worker/asset resolution, process-kill recovery and native binary upgrade behavior must pass device testing before production use. Vite, SwiftUI bootstrap, snapshots, immediate reload, resume/suspend installation and NativeScript delta updates are not supported in this version.
+This is an **alpha integration**. Full application boot, worker/asset resolution, process-kill recovery and native binary upgrade behavior must pass device testing before production use. Vite, SwiftUI bootstrap, snapshots, immediate reload and resume/suspend installation are not supported in this version.
 
 ## Supported build inputs
 
@@ -74,8 +74,18 @@ Publish iOS and Android separately. NativeScript requires signatures and an exac
 
 A NativeScript app tree cannot be uploaded to a React Native project, including through either direct API. Expo and CodePush remain valid for React Native projects.
 
+## File delta releases
+
+Add `--delta` to the upload command to compare the complete tree with the latest release for the same project, environment, platform, runtime and deployment generation. Unchanged files are referenced without re-uploading their bytes. Changed files use bounded `npdiff1` copy/insert patches when the patch saves at least 20%; new or unrelated files are sent in full. The server reconstructs and verifies the signed inventory before publishing and stores full files alongside patches.
+
+The updated NativeScript SDK automatically applies these file patches when the referenced base release is active. It snapshots the base file, verifies its hash, applies a bounded patch, and verifies the output against the signed target hash and size. Missing, corrupt or mismatched bases/patches fall back to the full file. Existing content-hash caching reuses unchanged assets. Deleted files are absent from the new tree; the active tree is never patched in place. Cold-launch verification and rollback remain enabled.
+
+A native rebuild is required to adopt the decoder, and its fingerprint changes. The first release for that runtime transfers full files. Subsequent uploads can use `--delta`. Older clients ignore optional file-patch metadata and download full files. CLI savings cover file content before manifest, base64 and HTTP overhead; native `download_delta_applied` telemetry reports actual patch versus reconstructed-file bytes. This format is separate from the Hermes `bsdiff4` bundle format.
+
 ## Validation and release gates
 
 Run `yarn workspace @nitropush/nativescript build` followed by `yarn workspace @nitropush/nativescript test`. Tests cover JS lifecycle/coalescing, unsupported modes, and bootstrap transforms. Backend and CLI tests cover framework targeting, complete inventory collection and unsafe artifacts. Native compile checks are separate from a working release-mode device launch.
 
-Before distributing this alpha, run signed full-tree update, missing/corrupt asset, offline launch, failed first launch, native upgrade, workers/lazy imports and forced termination tests on both platforms. The shared engine still uses its existing preference-based launch state; a journal with power-loss fault injection and persisted anti-replay high-water marks remain production release gates from the supplied design. First updates always download full files; binary delta support is deliberately disabled for NativeScript.
+Before distributing this alpha, run signed full-tree update, missing/corrupt asset, offline launch, failed first launch, native upgrade, workers/lazy imports and forced termination tests on both platforms. The shared engine still uses its existing preference-based launch state; a journal with power-loss fault injection and persisted anti-replay high-water marks remain production release gates from the supplied design.
+
+Cross-system CLI/server and Swift/Kotlin delta integration tests run in the source repository. This mirror includes the SDK lifecycle, bootstrap, and fingerprint unit tests; native release-mode device testing is still required.

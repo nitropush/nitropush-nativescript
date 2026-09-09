@@ -17,14 +17,32 @@ export interface SyncOptions { installMode?: InstallMode }
 export type SyncStatusChangedCallback = (status: SyncStatus, error?: Error) => void;
 interface NativeBridge { execute(operation: string, callback: (result: string | null, error: string | null) => void): void }
 declare const NitroPushNativeScript: { shared: { executeCompletion(operation: string, callback: (result: string | null, error: string | null) => void): void } };
+declare const __ANDROID__: boolean;
+declare function require(id: string): unknown;
 declare const com: { nitropush: { sdk: {
-  NitroPushNativeScript: { getInstance(): { execute(operation: string, callback: unknown): void } };
+  NitroPushNativeScript: { getInstance(): { execute(operation: string, callback: unknown): void; getApplicationRoot(): string } };
   NitroPushCallback: new (methods: { complete(result: string | null, error: string | null): void }) => unknown;
 } } };
 
 const bridges = new WeakMap<NitroPushClient, NativeBridge>();
 const inflight = new WeakMap<NitroPushClient, Promise<SyncStatus>>();
 let singleton: NitroPushClient | undefined;
+
+function alignAndroidApplicationRoot(native: { getApplicationRoot(): string }): void {
+  if (typeof __ANDROID__ === "undefined" || !__ANDROID__) return;
+  const applicationRoot = native.getApplicationRoot();
+  if (!applicationRoot) throw new Error("NitroPush Android application root is missing. Rebuild the native app.");
+  const fileSystem = require("@nativescript/core/file-system") as {
+    Folder: { fromPath(path: string): unknown };
+    knownFolders: { currentApp(): unknown };
+  };
+  const folder = fileSystem.Folder.fromPath(applicationRoot);
+  if (!folder) throw new Error("NitroPush Android application root does not exist. Rebuild the native app.");
+  // NativeScript hardcodes knownFolders.currentApp() to filesDir/app. OTA releases
+  // live in a verified sibling directory, so make ~/ resolve against that tree.
+  fileSystem.knownFolders.currentApp = () => folder;
+}
+
 function nativeBridge(): NativeBridge {
   if (typeof NitroPushNativeScript !== "undefined") {
     const native = NitroPushNativeScript.shared;
@@ -32,6 +50,7 @@ function nativeBridge(): NativeBridge {
   }
   if (typeof com !== "undefined" && com.nitropush?.sdk?.NitroPushNativeScript) {
     const native = com.nitropush.sdk.NitroPushNativeScript.getInstance();
+    alignAndroidApplicationRoot(native);
     return { execute: (operation, callback) => native.execute(operation, new com.nitropush.sdk.NitroPushCallback({ complete: callback })) };
   }
   throw new Error("NitroPush native bootstrap is missing. Run the NativeScript prepare hook and rebuild the native app.");

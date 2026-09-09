@@ -12,6 +12,7 @@ class NitroPushNativeScript private constructor() {
     private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var configured = false
+    @Volatile private var applicationRoot = ""
 
     companion object {
         private val instance = NitroPushNativeScript()
@@ -19,6 +20,7 @@ class NitroPushNativeScript private constructor() {
 
         /** Injected after APK extraction, before AppConfig and Runtime initialization. */
         @JvmStatic fun selectRoot(context: Context, embeddedRoot: File): File {
+            instance.applicationRoot = File(embeddedRoot, "app").absolutePath
             if ((context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) return embeddedRoot
             return runCatching {
                 val metadata = context.packageManager.getApplicationInfo(context.packageName, PackageManager.GET_META_DATA).metaData
@@ -42,11 +44,15 @@ class NitroPushNativeScript private constructor() {
                         val source = File(embeddedRoot, name)
                         if (source.exists()) check(source.copyRecursively(File(root, name), overwrite = true))
                     }
+                    instance.applicationRoot = File(root, "app").absolutePath
                     root
                 }
             }.getOrElse { instance.configured = false; embeddedRoot }
         }
     }
+
+    /** NativeScript's JS file APIs otherwise keep resolving ~/ against filesDir/app. */
+    fun getApplicationRoot(): String = applicationRoot
 
     fun execute(operation: String, callback: NitroPushCallback) {
         executor.execute {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.INTERNET"/>
-  <application android:name="com.tns.NativeScriptApplication" android:label="NitroPush Example" android:allowBackup="false" tools:replace="android:allowBackup">
+  <application android:name="com.tns.NativeScriptApplication" android:label="NitroPush Example" android:allowBackup="false" android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" tools:replace="android:allowBackup">
     <activity android:name="com.tns.NativeScriptActivity" android:exported="true" android:configChanges="keyboardHidden|orientation|screenSize">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>

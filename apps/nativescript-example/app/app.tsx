@@ -6,7 +6,7 @@ import { configure, sync, InstallMode, SyncStatus, type LocalPackage } from '@ni
 
 const client = configure();
 // Change this marker, rebuild the JS bundle and upload it to verify an OTA visually.
-const demoVersion = 'Embedded v1';
+const demoVersion = 'Image OTA v1.0.3';
 const colors = { background: '#0b1020', card: '#141a30', muted: '#7c8ab0', blue: '#3b82f6', secondary: '#1f2a44' };
 
 function Demo() {
@@ -36,7 +36,11 @@ function Demo() {
   };
   const rollbackPending = async () => {
     setBusy(true);
-    try { await client.clearPendingUpdate(); await readMetadata(); setError(null); setStatus('Pending update removed'); }
+    try {
+      await client.clearPendingUpdate();
+      await readMetadata(); setError(null);
+      setStatus('Pending update removed');
+    }
     catch (e) { setError(String(e)); }
     finally { setBusy(false); }
   };
@@ -47,11 +51,12 @@ function Demo() {
     <scrollView><stackLayout padding={24}>
       <label text="NitroPush demo" color="#ffffff" fontSize={24} fontWeight="600" />
       <label text={`native-driven · React NativeScript · ${demoVersion}`} textWrap={true} color={colors.muted} marginBottom={24} />
+      <image src="~/assets/nitropush-logo.png" width={112} height={112} stretch="aspectFit" horizontalAlignment="center" marginBottom={24} />
       <stackLayout backgroundColor={colors.card} padding={16} borderRadius={12} marginBottom={24}>
         <label text="RUNNING" style={labelStyle} />
-        <label text={running ? `${running.label} · ${running.appVersion}` : 'binary bundle'} textWrap={true} style={valueStyle} />
+        <label text={running ? `v${running.label}` : 'binary bundle'} textWrap={true} style={valueStyle} />
         <label text="PENDING" style={labelStyle} />
-        <label text={pending ? `${pending.label} · ${pending.appVersion}` : '—'} textWrap={true} style={valueStyle} />
+        <label text={pending ? `v${pending.label}` : '—'} textWrap={true} style={valueStyle} />
         <label text="STATUS" style={labelStyle} />
         <label text={status} textWrap={true} style={valueStyle} />
         {error ? <><label text="ERROR" style={labelStyle} /><label text={error} textWrap={true} color="#ff8a8a" /></> : null}

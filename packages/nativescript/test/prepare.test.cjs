@@ -9,6 +9,15 @@ test('Android root selection runs before AppConfig, and hook is idempotent', () 
   assert.equal(patchAndroid(patched), patched);
   assert.throws(() => patchAndroid('new Runtime()'), /Unsupported/);
 });
+test('Android bridge exposes the selected application directory to JS asset resolution', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').resolve(__dirname, '../platforms/android/java/com/nitropush/sdk/NitroPushNativeScript.kt'),
+    'utf8',
+  );
+  assert.match(source, /applicationRoot = File\(embeddedRoot, "app"\)\.absolutePath/);
+  assert.match(source, /applicationRoot = File\(root, "app"\)\.absolutePath/);
+  assert.match(source, /fun getApplicationRoot\(\): String = applicationRoot/);
+});
 test('iOS selection precedes V8 allocation and preserves debug guard', () => {
   const patched = patchIOS('NativeScript *runtime = [[NativeScript alloc] initWithConfig:config];');
   assert.ok(patched.indexOf('selectRoot') < patched.indexOf('[[NativeScript alloc]'));
