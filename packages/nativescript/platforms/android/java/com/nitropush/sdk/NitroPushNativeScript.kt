@@ -52,6 +52,7 @@ class NitroPushNativeScript private constructor() {
         executor.execute {
             var result: String? = null
             var error: String? = null
+            var phase = "check"
             try {
                 check(configured) { "NitroPush bootstrap/configuration is missing" }
                 val core = NitroPushSdk.shared
@@ -66,7 +67,9 @@ class NitroPushNativeScript private constructor() {
                             val remote = core.checkForUpdate()
                             if (remote == null) "{\"status\":\"UP_TO_DATE\"}"
                             else {
+                                phase = "download/verification"
                                 val local = core.downloadUpdate(remote)
+                                phase = "install"
                                 core.installUpdate(local, NPInstallMode.ON_NEXT_RESTART, 0.0)
                                 "{\"status\":\"UPDATE_INSTALLED\"}"
                             }
@@ -74,7 +77,10 @@ class NitroPushNativeScript private constructor() {
                     }
                     else -> error("Unsupported NitroPush operation")
                 }
-            } catch (_: Throwable) { error = "NitroPush update failed or native bootstrap is missing" }
+            } catch (_: Throwable) {
+                error = if (!configured) "NitroPush bootstrap/configuration is missing; rebuild the native app"
+                else "Update $phase failed. Check the deployment key, connection, signing public key and runtime version."
+            }
             main.post { callback.complete(result, error) }
         }
     }

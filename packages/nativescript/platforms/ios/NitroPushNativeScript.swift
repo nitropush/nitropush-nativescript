@@ -52,6 +52,7 @@ public final class NitroPushNativeScript: NSObject {
                 let semaphore = DispatchSemaphore(value: 0)
                 Task {
                     defer { semaphore.signal() }
+                    var phase = "check"
                     do {
                         if NitroPushSdk.shared.getPendingPackage() != nil {
                             done("{\"status\":\"UPDATE_INSTALLED\"}"); return
@@ -59,10 +60,21 @@ public final class NitroPushNativeScript: NSObject {
                         guard let remote = try await NitroPushSdk.shared.checkForUpdate(deploymentKeyOverride: nil) else {
                             done("{\"status\":\"UP_TO_DATE\"}"); return
                         }
+                        phase = "download"
                         let local = try await NitroPushSdk.shared.downloadUpdate(remote)
+                        phase = "install"
                         try await NitroPushSdk.shared.installUpdate(pkg: local, installMode: .onNextRestart, minimumBackgroundDuration: 0)
                         done("{\"status\":\"UPDATE_INSTALLED\"}")
-                    } catch { done(nil, "NitroPush update failed verification or download") }
+                    } catch {
+                        if case NitroPushError.networkFailure(let message) = error,
+                           message.contains("status=401 ") || message.contains("status=403 ") {
+                            done(nil, "Update request was denied. Check the deployment key and project access, then rebuild the app.")
+                        } else if case NitroPushError.integrityFailure = error {
+                            done(nil, "Update verification failed. Check the signing public key and runtime version.")
+                        } else {
+                            done(nil, "Update \(phase) failed. Check the network connection and native project configuration.")
+                        }
+                    }
                 }
                 semaphore.wait()
             default: done(nil, "Unsupported NitroPush operation")
