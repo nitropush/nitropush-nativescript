@@ -6,7 +6,7 @@ import { configure, sync, InstallMode, SyncStatus, type LocalPackage } from '@ni
 
 const client = configure();
 // Change this marker, rebuild the JS bundle and upload it to verify an OTA visually.
-const demoVersion = 'Image OTA v1.0.3';
+const demoVersion = 'File delta OTA v1.0.6';
 const colors = { background: '#0b1020', card: '#141a30', muted: '#7c8ab0', blue: '#3b82f6', secondary: '#1f2a44' };
 
 function Demo() {
