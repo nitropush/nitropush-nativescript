@@ -69,6 +69,9 @@ public final class NitroPushNativeScript: NSObject {
                         if case NitroPushError.networkFailure(let message) = error,
                            message.contains("status=401 ") || message.contains("status=403 ") {
                             done(nil, "Update request was denied. Check the deployment key and project access, then rebuild the app.")
+                        } else if case NitroPushError.networkFailure(let message) = error,
+                                  phase == "check", message.contains("status=404 ") {
+                            done(nil, "Update project or service not found. Check the deployment key and server configuration, then rebuild the app.")
                         } else if case NitroPushError.integrityFailure = error {
                             done(nil, "Update verification failed. Check the signing public key and runtime version.")
                         } else {
