@@ -1,0 +1,258 @@
+import Foundation
+import UIKit
+
+/// Free-form metadata attached to events that need extra context (e.g. delta
+/// download stats). All fields are optional so the struct is reusable across
+/// event types without carrying zero-value noise.
+struct NlEventMetadata: Codable {
+    /// For `download_delta_applied` — size of the downloaded patch in bytes.
+    var patchSizeBytes: Int?
+    /// For `download_delta_applied` — size of the full bundle (for comparison).
+    var fullSizeBytes: Int?
+    /// For `download_delta_applied` — bytes saved vs a full download.
+    var savedBytes: Int?
+    /// For `download_delta_failed` — short machine-readable failure reason.
+    var reason: String?
+
+    var isEmpty: Bool {
+        patchSizeBytes == nil && fullSizeBytes == nil && savedBytes == nil && reason == nil
+    }
+}
+
+/// One JS-shaped analytics event. Wire matches the existing `/api/sdk/events`
+/// contract — moving from JS to native must not change the server schema.
+struct NlAnalyticsEvent: Codable {
+    /// Stable across retries so the server can make ingestion idempotent.
+    let eventId: String
+    let eventType: String
+    let clientUniqueId: String
+    let appVersion: String
+    let otaVersion: Double?
+    let releaseId: String?
+    let platform: String
+    let osVersion: String?
+    let deviceModel: String?
+    let occurredAt: String
+    let metadata: NlEventMetadata?
+}
+
+/// Native equivalent of the deleted JS `createAnalyticsEmitter`. Owns the
+/// queue, flush timer, retry/backoff, and `URLSession` call. Lives entirely
+/// in Swift so events fire even when the JS thread is asleep, mid-restart,
+/// or hasn't loaded yet.
+///
+/// **Threading.** All queue mutation goes through `serial` so callers (the
+/// Nitro bridge, lifecycle observers, the rollback sweep) can hammer
+/// `enqueue` from any thread without locking.
+final class NlAnalytics: NSObject, URLSessionDataDelegate {
+    private let serverUrl: String
+    private let deploymentKey: String
+    private let capacity: Int
+    private let flushAt: Int
+    private let flushIntervalSeconds: TimeInterval
+
+    private let serial = DispatchQueue(label: "com.nitropush.analytics", qos: .utility)
+    private var deviceToken: String?
+    private lazy var session: URLSession = {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 15
+        cfg.timeoutIntervalForResource = 60
+        // Telemetry is best-effort and small; we don't want it riding on the
+        // device's metered foreground budget.
+        cfg.allowsExpensiveNetworkAccess = true
+        cfg.allowsConstrainedNetworkAccess = true
+        return URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
+    }()
+
+    private var queue: [NlAnalyticsEvent] = []
+    private var flushing = false
+    private var backoffMs: Int = 0
+    private var flushTimer: DispatchSourceTimer?
+    private var stopped = false
+    private var pendingBatches: [Int: [NlAnalyticsEvent]] = [:]
+
+    init(
+        serverUrl: String,
+        deploymentKey: String,
+        deviceToken: String?,
+        capacity: Int = 200,
+        flushAt: Int = 10,
+        flushIntervalSeconds: TimeInterval = 30
+    ) {
+        // Trim trailing slash so we can append `/api/sdk/events` without a
+        // double-slash (some reverse proxies treat them as different paths).
+        self.serverUrl = serverUrl.hasSuffix("/") ? String(serverUrl.dropLast()) : serverUrl
+        self.deploymentKey = deploymentKey
+        self.deviceToken = deviceToken
+        self.capacity = capacity
+        self.flushAt = flushAt
+        self.flushIntervalSeconds = flushIntervalSeconds
+        super.init()
+    }
+
+    func enqueue(_ event: NlAnalyticsEvent) {
+        serial.async { [weak self] in
+            guard let self = self, !self.stopped else { return }
+            self.queue.append(event)
+            // Drop oldest at capacity — we'd rather lose old events than
+            // grow unbounded waiting on a dead network.
+            while self.queue.count > self.capacity {
+                self.queue.removeFirst()
+            }
+            if self.queue.count >= self.flushAt {
+                self.flushLocked()
+            } else {
+                self.scheduleTimerLocked()
+            }
+        }
+    }
+
+    func flush() {
+        serial.async { [weak self] in self?.flushLocked() }
+    }
+
+    /// Called when `/releases/latest` issues or rotates the origin-scoped
+    /// device proof. Queueing this on `serial` orders it before the next retry.
+    func setDeviceToken(_ token: String) {
+        serial.async { [weak self] in self?.deviceToken = token }
+    }
+
+    func stop() {
+        serial.async { [weak self] in
+            self?.stopped = true
+            self?.flushTimer?.cancel()
+            self?.flushTimer = nil
+            self?.session.invalidateAndCancel()
+        }
+    }
+
+    // Never forward the public deployment key or device proof to a redirect
+    // target. The main SDK transport has the same no-redirect rule.
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
+    }
+
+    // MARK: - Private (must be called on `serial`)
+
+    // Telemetry acknowledgments need only the status. A completion-handler
+    // data task buffers the whole response, even when its Data is discarded.
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
+                    didReceive response: URLResponse,
+                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        let ok = (response as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } == true
+        serial.async { [weak self] in self?.finishBatchLocked(dataTask.taskIdentifier, ok: ok) }
+        completionHandler(.cancel)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        serial.async { [weak self] in self?.finishBatchLocked(task.taskIdentifier, ok: false) }
+    }
+
+    private func finishBatchLocked(_ taskId: Int, ok: Bool) {
+        // Header cancellation and transport completion can both arrive.
+        guard let batch = pendingBatches.removeValue(forKey: taskId) else { return }
+        flushing = false
+        guard !stopped else { return }
+        if ok {
+            backoffMs = 0
+        } else {
+            queue.insert(contentsOf: batch, at: 0)
+            while queue.count > capacity { queue.removeFirst() }
+            backoffMs = min(max(backoffMs * 2, 1_000), 60_000)
+            scheduleRetryLocked()
+        }
+    }
+
+    private func scheduleTimerLocked() {
+        if flushTimer != nil { return }
+        let timer = DispatchSource.makeTimerSource(queue: serial)
+        timer.schedule(deadline: .now() + flushIntervalSeconds)
+        timer.setEventHandler { [weak self] in
+            self?.flushTimer = nil
+            self?.flushLocked()
+        }
+        timer.resume()
+        flushTimer = timer
+    }
+
+    private func flushLocked() {
+        if flushing || stopped || queue.isEmpty { return }
+        let batch = queue
+        queue.removeAll()
+        flushing = true
+
+        guard let url = URL(string: "\(serverUrl)/api/sdk/events") else {
+            // Bad URL — drop the batch rather than retrying forever.
+            flushing = false
+            return
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let deviceToken, !deviceToken.isEmpty {
+            req.setValue(deviceToken, forHTTPHeaderField: "x-nitropush-device-token")
+        }
+
+        let body = Body(deploymentKey: deploymentKey, events: batch)
+        do {
+            req.httpBody = try JSONEncoder().encode(body)
+        } catch {
+            flushing = false
+            return
+        }
+
+        let task = session.dataTask(with: req)
+        pendingBatches[task.taskIdentifier] = batch
+        task.resume()
+    }
+
+    private func scheduleRetryLocked() {
+        flushTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: serial)
+        timer.schedule(deadline: .now() + .milliseconds(backoffMs))
+        timer.setEventHandler { [weak self] in
+            self?.flushTimer = nil
+            self?.flushLocked()
+        }
+        timer.resume()
+        flushTimer = timer
+    }
+
+    private struct Body: Encodable {
+        let deploymentKey: String
+        let events: [NlAnalyticsEvent]
+    }
+}
+
+/// Helpers shared between `NitroPushSdk` (calls these from configure /
+/// download / install) and the rollback sweep so events tag with the
+/// same device fields regardless of who fires them.
+enum NlAnalyticsContext {
+    static func now() -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.string(from: Date())
+    }
+
+    static func osVersion() -> String {
+        UIDevice.current.systemVersion
+    }
+
+    static func deviceModel() -> String {
+        var sys = utsname()
+        uname(&sys)
+        let mirror = Mirror(reflecting: sys.machine)
+        let id = mirror.children.compactMap { c -> String? in
+            guard let v = c.value as? Int8, v != 0 else { return nil }
+            return String(UnicodeScalar(UInt8(v)))
+        }.joined()
+        return id.isEmpty ? UIDevice.current.model : id
+    }
+}

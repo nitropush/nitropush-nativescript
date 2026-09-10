@@ -1,0 +1,15 @@
+{
+  "platforms/ios/core/NitroPushSdk.swift": "9bff6dd54b32a48eb1f2efa6fc9f49c03ad3beeb1b9b50fafbfd4e0ef66cac04",
+  "platforms/ios/core/NitroPushTypes.swift": "6da81ab4080c393fbcc1ef2974314c9eb53fc5924a75fdc6127c1fc5e556f317",
+  "platforms/ios/core/NitroPushAnalytics.swift": "40b94e2a2f8809086ddc0073ff08c61b98b5dafb0ed652ca38d6fbbf9a358473",
+  "platforms/ios/core/NPSequenceLedger.swift": "878ba676b6d1fb75cb848a32cbd7f0729fd5ba69aa457937da7bf173cda850d7",
+  "platforms/ios/core/NPFileDelta.swift": "71f5c569811daff2acc3cbbe5378b309bd9911682997a55183d5f6570ad422e1",
+  "platforms/ios/core/BspatchBridge.swift": "e5e84029c6978494c64922c7a77e62c7dff8ee44cbb1d674241bf15bf1ae910b",
+  "platforms/ios/core/bspatch/bspatch.c": "2dd44d304e7ca10e05677af15b4e6e1c0d59c5724496ae83de2fcd0349f5087c",
+  "platforms/ios/core/bspatch/bspatch.h": "54e5a7f6d9d092e33540074660843341b635820a07d6545d54b3a000e7866f34",
+  "platforms/android/java/com/nitropush/sdk/NitroPushSdk.kt": "5a8148ec0ecd19ec0c27d4aaf074ef8ecb8ea04bad87bb2bb8bc7618109f3338",
+  "platforms/android/java/com/nitropush/sdk/NitroPushTypes.kt": "5bddc7581a1b5b7727868e42c767fcd428e33cb205b6f9ca5ae8a6e1c0a56b72",
+  "platforms/android/java/com/nitropush/sdk/NitroPushAnalytics.kt": "9f2f2bc1747e565289a56f49846fc846faf79b7eb99c69cb09c206284e3e0671",
+  "platforms/android/java/com/nitropush/sdk/NPSequenceLedger.kt": "3938ac70c6d475de102cf394385853e5af4392a2e27b4db966dd194f2ebc1629",
+  "platforms/android/java/com/nitropush/sdk/NPFileDelta.kt": "4a098f67c5707270e876b4ce0b6e2b2d7d7c862fa0836c0e119d5af1e34c29f8"
+}
