@@ -1,0 +1,3 @@
+platforms/android/*.aar
+test/
+tsconfig.json

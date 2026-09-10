@@ -1,0 +1,24 @@
+{
+  "name": "nitropush-nativescript-workspace",
+  "private": true,
+  "packageManager": "yarn@4.4.1",
+  "workspaces": [
+    "packages/nativescript",
+    "apps/nativescript-example"
+  ],
+  "resolutions": {
+    "esbuild": "0.28.2",
+    "kysely": "0.28.17",
+    "postcss": "8.5.26",
+    "tmp": "0.2.7",
+    "undici@npm:7.28.0": "npm:7.29.0",
+    "uuid": "11.1.1",
+    "yaml": "2.9.0"
+  },
+  "scripts": {
+    "build": "yarn workspace @nitropush/nativescript build",
+    "test": "yarn workspace @nitropush/nativescript test",
+    "typecheck": "yarn workspace @nitropush/nativescript typecheck && yarn workspace @nitropush/nativescript-example typecheck",
+    "example": "yarn workspace @nitropush/nativescript-example"
+  }
+}
