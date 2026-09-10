@@ -18,6 +18,13 @@ The build packages the same Swift/Kotlin engine sources as `@nitropush/react-nat
 
 ## Native setup
 
+The public npm package was not available at the September 10, 2026 registry
+check. For a consuming app outside this workspace, run
+`npm pack ./packages/nativescript` from the monorepo after building, then install
+the resulting `nitropush-nativescript-0.1.0-alpha.0.tgz` in that app. The package's
+prepack hook compiles the SDK and verifies the included native sources. Recheck availability before using a
+registry alpha; these commands do not publish it.
+
 Create a **NativeScript** project in the dashboard, create an environment and register an ECDSA P-256 signing public key. Existing projects remain React Native; their uploads cannot be switched to NativeScript. The framework cannot be changed after project creation.
 
 Install this package and add `hooks/after-prepare/nitropush.js` to the application:
@@ -33,7 +40,9 @@ module.exports = function ($projectData, hookArgs) {
 
 Set `NITROPUSH_DEPLOYMENT_KEY` and `NITROPUSH_BUNDLE_PUBLIC_KEY` in the build environment. The public key is base64 DER SPKI; the private signing key must never be included in the app. The hook injects these public client configuration values and a runtime fingerprint into generated native configuration, then patches the native startup location. Keep generated `platforms/` files out of source control.
 
-The fingerprint conservatively includes platform, bootstrap ABI, packaged NitroPush native sources, dependency versions, the lockfile, `nativescript.config.ts` and `App_Resources`. Changes to those inputs require a new native binary. Keep native additions in those tracked inputs; unsupported hand edits to generated native projects are not fingerprinted. The fingerprint is written to `platforms/<platform>/nitropush-runtime.json` for use as the upload's `--app-version`.
+The fingerprint conservatively includes platform, bootstrap ABI, packaged NitroPush native sources, dependency versions, the lockfile, `nativescript.config.ts` and `App_Resources`. Changes to those inputs require a new native binary. Keep native additions in those tracked inputs; unsupported hand edits to generated native projects are not fingerprinted. The fingerprint is written to `platforms/<platform>/nitropush-runtime.json` for use as the upload's `--runtime-version` (`--app-version` is a deprecated alias).
+
+The fingerprint is not the release number or bundle hash. The dashboard displays the server-assigned OTA sequence (1, 2, 3, … per project/environment/runtime; reservations may leave gaps). The native fingerprint gates compatibility, while per-file SHA-256 protects content integrity and caching. Keep both: changing JavaScript or an image can change content hashes without changing native compatibility. See the [complete NativeScript guide](https://docs.nitropush.org/docs/sdk/nativescript).
 
 On iOS, the selector changes `Config.BaseDir` before allocating V8 and retains binary-owned metadata. On Android, it selects the root after APK extraction and before `AppConfig`/runtime initialization, preserving the APK's internal and metadata files. Debug builds retain NativeScript's development loader.
 
@@ -63,7 +72,7 @@ nitropush release upload \
   --project PROJECT_ID \
   --environment prod \
   --platforms android \
-  --app-version RUNTIME_FINGERPRINT_FROM_NATIVE_BUILD \
+  --runtime-version RUNTIME_FINGERPRINT_FROM_NATIVE_BUILD \
   --label 1.0.1 \
   --kind nativescript \
   --bundle-path ./platforms/android/app/src/main/assets/app \
