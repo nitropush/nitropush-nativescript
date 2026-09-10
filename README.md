@@ -57,4 +57,6 @@ No real deployment or signing keys are included. Use the [published CLI](https:/
 
 This repository is a filtered mirror. Relevant pushes to the source repository's `main` branch open or update a rolling `bot/sync-from-monorepo` pull request here. Merging that PR updates `main`; no npm package is published automatically. SDK unit tests, type checks, and tarball packaging run in CI. These checks do not replace native device testing.
 
-Changes should be made in the canonical source repository. Direct edits to the bot branch will be replaced by the next snapshot sync. Only an allowlisted snapshot is copied; private repository history and commit messages are not exported.
+Relevant source commits are replayed individually, preserving their original authors, author dates, subjects, and bodies. Each receives a `Source: nitropush/nitropush-platform@<sha>` trailer. SHAs differ because the public trees and parent history are filtered. Unrelated source commits and files are excluded; generated build metadata gets a separate bot commit.
+
+**Merge sync PRs without squashing** so the original commit sequence remains visible. Changes should be made in the canonical source repository, not directly on the bot branch. The one-time migration from snapshot syncing retains the old public `main` as a merge ancestor; it does not force-push `main`.

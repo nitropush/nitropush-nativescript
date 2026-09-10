@@ -1,4 +1,5 @@
 {
+  "mode": "commit-replay-v1",
   "source": "nitropush/nitropush-platform",
-  "source_sha": "e39af2225abb132de9bc018911f49a67bfd6092d"
+  "last_replayed_sha": "f5b9bd8aadf37a2445653b6fe84dc6de83be9d68"
 }
