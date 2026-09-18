@@ -88,9 +88,15 @@ function prepare(projectDir, platform) {
     NITROPUSH_BUNDLE_PUBLIC_KEY: publicKey,
     NITROPUSH_RUNTIME_VERSION: runtime,
   }, platform);
+  const appMetadata = candidates.filter(file => path.basename(file) === 'package.json' && path.basename(path.dirname(file)) === 'app');
+  if (appMetadata.length !== 1) throw new Error(`Cannot identify a unique generated ${platform} app tree for embedded asset indexing. No files changed.`);
+  const embedded = require('./embedded-assets.cjs');
+  const appRoot = path.dirname(appMetadata[0]);
+  const index = embedded.inventory({ platform: `nativescript-${platform}`, appRoot });
   fs.writeFileSync(bootstrap[0], patched);
   fs.writeFileSync(configs[0], config);
   fs.writeFileSync(path.join(root, 'nitropush-runtime.json'), JSON.stringify({ framework: 'nativescript', platform, runtimeVersion: runtime }, null, 2) + '\n');
+  fs.writeFileSync(path.join(appRoot, embedded.INDEX_NAME), index.json);
   return runtime;
 }
 module.exports = { prepare, runtimeVersion, patchAndroid, patchIOS, injectConfiguration };

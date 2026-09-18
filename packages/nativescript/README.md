@@ -16,6 +16,8 @@ yarn workspace @nitropush/nativescript build
 
 The build packages the same Swift/Kotlin engine sources as `@nitropush/react-native`, with a NativeScript host adapter. This standalone repository checks in only the shared engine files required by NativeScript. `native-core.json` records their SHA-256 checksums; the build verifies them before packaging. Update the canonical engine in the source repository, not these copies. No package is published by these build commands.
 
+The after-prepare hook also generates `app/nitropush-embedded-assets.json` from the final native app tree. The downloader uses this immutable binary inventory before delta/full downloads, reusing only files whose SHA-256 and byte size match the signed release. The CLI omits this native inventory from OTA uploads. Missing or invalid inventories safely fall back to downloads; adopting this capability requires a new native build. For custom packaging, run `node node_modules/@nitropush/nativescript/scripts/embedded-assets.cjs --platform nativescript-ios --app-root /path/to/generated/app` (or `nativescript-android`) before packaging and retain the generated file inside `app/`.
+
 ## Native setup
 
 The public npm package was not available at the September 10, 2026 registry
